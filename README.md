@@ -291,28 +291,93 @@ editor load straight into `ambiente.io.load_pair` / `load_task`.
 
 ## 9. ARC-AGI datasets
 
-Both ARC-AGI-1 and ARC-AGI-2 use the same JSON schema as our loader, so
-no conversion is needed.
+Everything lives under `datasets/` (gitignored — you fetch it per machine).
+ARC-AGI-1 and ARC-AGI-2 share the same JSON schema as our loader, so no
+format conversion is needed.
 
-### Layout
+### Target layout
 
 ```
 datasets/
-├── arc-agi-1/data/training/<id>.json     # 400 tasks
-├── arc-agi-1/data/evaluation/<id>.json   # 400 tasks
-├── arc-agi-2/data/training/<id>.json     # 1000 tasks (includes ARC-1)
-└── arc-agi-2/data/evaluation/<id>.json   # 120 tasks
+├── arc-agi-1/        github.com/fchollet/ARC-AGI       400 train · 400 eval
+├── arc-agi-2/        github.com/arcprize/ARC-AGI-2    1000 train · 120 eval
+├── nvarc-code/       github.com/1ytic/NVARC            solution code + SDG scripts
+├── nvarc-artifacts/  Kaggle: sorokin/nvarc-artifacts-puzzles    text artifacts
+├── nvarc-synthetic/  Kaggle: sorokin/nvarc-synthetic-puzzles    103k synth puzzles
+└── nvarc-augmented/  Kaggle: sorokin/nvarc-augmented-puzzles    3.2M augmented (large)
 ```
 
-Clone with:
+### ARC-AGI-1 and ARC-AGI-2 (GitHub, small)
 
 ```bash
 mkdir -p datasets && cd datasets
-git clone --depth 1 https://github.com/fchollet/ARC-AGI.git arc-agi-1
-git clone --depth 1 https://github.com/arcprize/ARC-AGI-2.git arc-agi-2
+git clone --depth 1 https://github.com/fchollet/ARC-AGI.git    arc-agi-1
+git clone --depth 1 https://github.com/arcprize/ARC-AGI-2.git  arc-agi-2
 ```
 
-### Iterating
+About 6 MB and 9 MB respectively. Tasks land in
+`<repo>/data/training/<id>.json` and `<repo>/data/evaluation/<id>.json`.
+
+### NVARC code (GitHub, small)
+
+The repo holds the synthetic-data generation pipeline and Sorokin & Puget's
+solution that won ARC Prize 2025. The actual *datasets* are on Kaggle (next
+section); only the code is on GitHub.
+
+```bash
+cd datasets
+git clone --depth 1 https://github.com/1ytic/NVARC.git nvarc-code
+```
+
+### NVARC datasets (Kaggle)
+
+The three NVARC datasets are hosted on Kaggle, so you need the `kaggle`
+CLI plus an API token.
+
+**1. Install the CLI** (into the same venv you use for ambiente):
+
+```bash
+pip install kaggle
+```
+
+**2. Get your API token** — go to <https://www.kaggle.com/settings> →
+"API" section → **"Create New Token"**. The browser downloads a
+`kaggle.json` file containing your username + key.
+
+**3. Place the token** where the CLI looks for it:
+
+- **Linux / macOS:** `mkdir -p ~/.kaggle && mv ~/Downloads/kaggle.json ~/.kaggle/ && chmod 600 ~/.kaggle/kaggle.json`
+- **Windows (PowerShell):** `mkdir $env:USERPROFILE\.kaggle ; mv $env:USERPROFILE\Downloads\kaggle.json $env:USERPROFILE\.kaggle\`
+- **Alternative on any OS:** export the credentials inline (no file):
+  ```bash
+  export KAGGLE_USERNAME=your_user
+  export KAGGLE_KEY=your_api_key
+  ```
+
+**4. Verify auth:**
+
+```bash
+kaggle datasets list -m -s arc          # should print results, not "Unauthorized"
+```
+
+**5. Download** (each command unzips into the destination directory):
+
+```bash
+cd datasets
+
+# (a) tiny — just the text prompts/artifacts used to build the synth set
+kaggle datasets download -d sorokin/nvarc-artifacts-puzzles -p nvarc-artifacts --unzip
+
+# (b) mid — 103k synthetic ARC-style puzzles
+kaggle datasets download -d sorokin/nvarc-synthetic-puzzles -p nvarc-synthetic --unzip
+
+# (c) BIG — 3.2M augmented puzzles. Multi-GB; expect a long download.
+kaggle datasets download -d sorokin/nvarc-augmented-puzzles -p nvarc-augmented --unzip
+```
+
+You almost always want (b) only. Pull (c) later, when training scales up.
+
+### Loading in Python
 
 ```python
 from ambiente.arc import (load_arc, list_task_ids, iter_tasks,
