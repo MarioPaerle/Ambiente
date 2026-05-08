@@ -1,0 +1,16 @@
+# external data — large, fetched per-machine
+datasets/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+
+# editor / OS
+.idea/
+.DS_Store
+
+# claude code local session settings
+.claude/
